@@ -32,13 +32,13 @@
 
     <!-- React and ReactDOM CDN -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Babel for JSX transformation in browser (for development/simple projects) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
 
     <script type="text/babel">
         // TEMPATKAN URL GOOGLE FORM DAN ID INPUT ANDA DI SINI
-        // Sila PASTIkan nilai-nilai ini TEPAT 100% menggunakan kaedah "Inspect Element" di atas.
+        // Sila PASTIkan nilai-nilai ini TEPAT 100% menggunakan kaedah "Inspect Element" yang diterangkan di atas.
         const GOOGLE_FORM_ACTION_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdettwqhWDq-40Z8j2CcSp4pJa3vN2gHk68OAO_6PZLfJ2xtw/formResponse";
         const GOOGLE_FORM_NAME_FIELD_ID = "entry.802902389";
         const GOOGLE_FORM_PHONE_FIELD_ID = "entry.631499256";
@@ -303,33 +303,35 @@
           };
 
           // Function to send data to Google Form using a hidden iframe
-          const sendLeadToGoogleForm = async (name, phone, quizGender, quizAnswers) => {
+          // Menggunakan useCallback untuk memastikan fungsi ini stabil dan tidak menyebabkan render berlebihan
+          const sendLeadToGoogleForm = React.useCallback(async (name, phone, quizGender, quizAnswers) => {
             if (!GOOGLE_FORM_ACTION_URL || !GOOGLE_FORM_NAME_FIELD_ID || !GOOGLE_FORM_PHONE_FIELD_ID) {
                 console.error("Google Form configuration is missing. Please update the GOOGLE_FORM_... constants in the code.");
                 return;
             }
 
-            // Only send if name or phone is provided and it hasn't been sent for this session yet
+            // Elak penghantaran jika tiada data atau sudah dihantar untuk sesi ini
             if ((name.trim() === '' && phone.trim() === '') || hasSentLeadToGoogleFormRef.current) {
                 return;
             }
+            
+            console.log("Attempting to send lead data to Google Form:", { name, phone, quizGender, quizAnswers });
+            setIsSendingData(true); // Tunjukkan feedback visual
 
-            setIsSendingData(true); // Show sending feedback
-
-            // Create a temporary hidden iframe
+            // Buat iframe tersembunyi
             const iframe = document.createElement('iframe');
             iframe.name = 'googleFormTarget';
             iframe.style.display = 'none';
             document.body.appendChild(iframe);
 
-            // Create a temporary form
+            // Buat form sementara
             const form = document.createElement('form');
             form.action = GOOGLE_FORM_ACTION_URL;
             form.method = 'POST';
-            form.target = 'googleFormTarget'; // Target the hidden iframe
-            form.style.display = 'none'; // Ensure form is also hidden
+            form.target = 'googleFormTarget'; // Sasarkan iframe tersembunyi
+            form.style.display = 'none'; 
 
-            // Add hidden input fields
+            // Tambah hidden input fields
             const addHiddenField = (name, value) => {
                 const input = document.createElement('input');
                 input.type = 'hidden';
@@ -345,41 +347,32 @@
                 addHiddenField(GOOGLE_FORM_GENDER_FIELD_ID, quizGender);
             }
             if (GOOGLE_FORM_ANSWERS_FIELD_ID) {
-                addHiddenField(GOOGLE_FORM_ANSWERS_FIELD_ID, JSON.stringify(quizAnswers)); // Stringify complex object
+                addHiddenField(GOOGLE_FORM_ANSWERS_FIELD_ID, JSON.stringify(quizAnswers)); // Stringify objek kompleks
             }
 
-            document.body.appendChild(form); // Append form to body temporarily
+            document.body.appendChild(form); // Tambah form ke body sementara
 
-            // Submit the form
+            // Hantar form
             form.submit();
 
-            // Clean up: Remove the form and iframe after a short delay
+            // Bersihkan form dan iframe selepas beberapa ketika
             setTimeout(() => {
                 form.remove();
                 iframe.remove();
                 console.log("Hidden Google Form submission initiated. Check your Google Sheet.");
-                hasSentLeadToGoogleFormRef.current = true; // Mark as sent for this session
-                setIsSendingData(false); // Hide sending feedback
-            }, 2000); // Give it a bit more time for the submission to process and then clean up
-          };
+                hasSentLeadToGoogleFormRef.current = true; // Tandakan sudah dihantar untuk sesi ini
+                setIsSendingData(false); // Sembunyikan feedback visual
+            }, 2000); // Beri masa 2 saat untuk penghantaran
+          }, [gender, answers]); // Bergantung pada gender dan answers yang merupakan sebahagian daripada payload
 
-          // Effect to trigger Google Form submission
+          // Effect untuk mencetuskan penghantaran Google Form apabila pengguna mengisi kedua-dua medan dan lepas fokus
           React.useEffect(() => {
-              // Only attempt to send if results are shown, and there's valid data
-              if (showResult && (leadName.trim() !== '' || leadPhone.trim() !== '')) {
-                  // Only send if data for this session hasn't been sent yet
-                  if (!hasSentLeadToGoogleFormRef.current) {
-                      const handler = setTimeout(() => {
-                          sendLeadToGoogleForm(leadName, leadPhone, gender, answers);
-                      }, 500); // Debounce to prevent multiple sends on rapid typing
-
-                      return () => {
-                          clearTimeout(handler);
-                      };
-                  }
+              // Reset status penghantaran jika nama/telefon bertukar selepas dihantar
+              // Ini memastikan jika pengguna menukar input selepas submit, ia boleh cuba submit semula
+              if (showResult && hasSentLeadToGoogleFormRef.current && (leadName.trim() === '' || leadPhone.trim() === '')) {
+                  hasSentLeadToGoogleFormRef.current = false;
               }
-          }, [showResult, leadName, leadPhone, gender, answers]);
-
+          }, [leadName, leadPhone]); // Pantau perubahan pada nama dan telefon untuk tujuan reset
 
           // Calculate the quiz result based on answers
           const calculateResult = () => {
@@ -507,7 +500,7 @@
           };
 
           // Component to display quiz results
-          const Result = ({ gender, consultationMessage, onRestart, leadName, setLeadName, leadPhone, setLeadPhone, answers, isSendingData }) => {
+          const Result = ({ gender, consultationMessage, onRestart, leadName, setLeadName, leadPhone, setLeadPhone, answers, isSendingData, sendLeadToGoogleForm }) => {
             const baseWhatsappPretext = "Saya dah jawab kuiz dan nak cuba berikhtiar dgn Teh Uncang Buah Zuriat.";
             // Append name and phone if provided
             const fullWhatsappPretext = `${baseWhatsappPretext}${leadName ? ` Nama: ${leadName}` : ''}${leadPhone ? ` No. Telefon: ${leadPhone}` : ''}`;
@@ -540,6 +533,12 @@
                             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200"
                             value={leadName}
                             onChange={(e) => setLeadName(e.target.value)}
+                            // Panggil sendLeadToGoogleForm apabila nama diubah dan medan telefon juga ada isi
+                            onBlur={() => { 
+                                if (leadName.trim() !== '' && leadPhone.trim() !== '') {
+                                    sendLeadToGoogleForm(leadName, leadPhone, gender, answers);
+                                }
+                            }}
                         />
                     </div>
                     <div className="mb-4">
@@ -549,6 +548,12 @@
                             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200"
                             value={leadPhone}
                             onChange={(e) => setLeadPhone(e.target.value)}
+                            // Panggil sendLeadToGoogleForm apabila nombor telefon diubah dan medan nama juga ada isi
+                            onBlur={() => {
+                                if (leadName.trim() !== '' && leadPhone.trim() !== '') {
+                                    sendLeadToGoogleForm(leadName, leadPhone, gender, answers);
+                                }
+                            }}
                         />
                     </div>
                     {isSendingData && (
@@ -579,7 +584,7 @@
             );
           };
 
-          // Render the quiz UI
+          // Render the App component into the 'root' div
           return (
             <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 flex flex-col items-center justify-center p-4 font-inter">
               {/* This style is already in the <head> but kept here for React component isolation if needed */}
@@ -630,6 +635,7 @@
                   setLeadPhone={setLeadPhone}
                   answers={answers} // Pass answers to Result for saving
                   isSendingData={isSendingData} // Pass sending status
+                  sendLeadToGoogleForm={sendLeadToGoogleForm} // Pass the function down
                 />
               ) : (
                 // Show current question
