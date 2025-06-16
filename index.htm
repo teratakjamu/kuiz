@@ -38,12 +38,13 @@
 
     <script type="text/babel">
         // URL GOOGLE FORM DAN ID INPUT ANDA
-        // Ini telah diisi berdasarkan link yang anda berikan
+        // Sila SAHKAN semula ID ini menggunakan kaedah "Inspect Element" yang diterangkan di atas.
+        // Jika anda telah mengesahkannya, pastikan nilai-nilai di sini sepadan 100%.
         const GOOGLE_FORM_ACTION_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdettwqhWDq-40Z8j2CcSp4pJa3vN2gHk68OAO_6PZLfJ2xtw/formResponse";
         const GOOGLE_FORM_NAME_FIELD_ID = "entry.802902389";
         const GOOGLE_FORM_PHONE_FIELD_ID = "entry.631499256";
-        const GOOGLE_FORM_GENDER_FIELD_ID = "entry.1916375168"; // Untuk medan 'Jantina'
-        const GOOGLE_FORM_ANSWERS_FIELD_ID = "entry.497349643"; // Untuk medan 'Jawapan Kuiz'
+        const GOOGLE_FORM_GENDER_FIELD_ID = "entry.1916375168"; 
+        const GOOGLE_FORM_ANSWERS_FIELD_ID = "entry.497349643"; 
 
         // Main App component
         const App = () => {
@@ -312,6 +313,21 @@
                 return;
             }
 
+            // Prepare payload for logging
+            const payload = {};
+            payload[GOOGLE_FORM_NAME_FIELD_ID] = name.trim();
+            payload[GOOGLE_FORM_PHONE_FIELD_ID] = phone.trim();
+            if (GOOGLE_FORM_GENDER_FIELD_ID) {
+                payload[GOOGLE_FORM_GENDER_FIELD_ID] = quizGender;
+            }
+            if (GOOGLE_FORM_ANSWERS_FIELD_ID) {
+                payload[GOOGLE_FORM_ANSWERS_FIELD_ID] = JSON.stringify(quizAnswers);
+            }
+            console.log("Attempting to send lead data to Google Form:", {
+                url: GOOGLE_FORM_ACTION_URL,
+                data: payload
+            });
+
             // Create a temporary hidden iframe
             const iframe = document.createElement('iframe');
             iframe.name = 'googleFormTarget';
@@ -350,13 +366,12 @@
             form.submit();
 
             // Clean up: Remove the form and iframe after a short delay
-            // This is crucial to prevent multiple submissions if user types quickly
             setTimeout(() => {
                 form.remove();
                 iframe.remove();
-                console.log("Lead data sent via hidden Google Form submission.");
-                hasSentLeadToGoogleFormRef.current = true; // Mark as sent
-            }, 1000); // Give it a moment to send
+                console.log("Hidden Google Form submission initiated. Check your Google Sheet.");
+                hasSentLeadToGoogleFormRef.current = true; // Mark as sent for this session
+            }, 1000);
           };
 
           // Effect to trigger Google Form submission
