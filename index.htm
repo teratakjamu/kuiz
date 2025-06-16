@@ -37,14 +37,13 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        // URL GOOGLE FORM DAN ID INPUT ANDA
-        // Sila SAHKAN semula ID ini menggunakan kaedah "Inspect Element" yang diterangkan di atas.
-        // Jika anda telah mengesahkannya, pastikan nilai-nilai di sini sepadan 100%.
+        // TEMPATKAN URL GOOGLE FORM DAN ID INPUT ANDA DI SINI
+        // Sila PASTIkan nilai-nilai ini TEPAT 100% menggunakan kaedah "Inspect Element" di atas.
         const GOOGLE_FORM_ACTION_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdettwqhWDq-40Z8j2CcSp4pJa3vN2gHk68OAO_6PZLfJ2xtw/formResponse";
         const GOOGLE_FORM_NAME_FIELD_ID = "entry.802902389";
         const GOOGLE_FORM_PHONE_FIELD_ID = "entry.631499256";
-        const GOOGLE_FORM_GENDER_FIELD_ID = "entry.1916375168"; 
-        const GOOGLE_FORM_ANSWERS_FIELD_ID = "entry.497349643"; 
+        const GOOGLE_FORM_GENDER_FIELD_ID = "entry.1916375168"; // Untuk medan 'Jantina'
+        const GOOGLE_FORM_ANSWERS_FIELD_ID = "entry.497349643"; // Untuk medan 'Jawapan Kuiz'
 
         // Main App component
         const App = () => {
@@ -56,6 +55,7 @@
           // State for lead collection
           const [leadName, setLeadName] = React.useState('');
           const [leadPhone, setLeadPhone] = React.useState('');
+          const [isSendingData, setIsSendingData] = React.useState(false); // New state for visual feedback
           // Menggunakan useRef untuk mengesan sama ada data telah dihantar untuk elak penghantaran berulang
           const hasSentLeadToGoogleFormRef = React.useRef(false); 
 
@@ -282,6 +282,7 @@
             setLeadName(''); // Clear lead name
             setLeadPhone(''); // Clear lead phone
             hasSentLeadToGoogleFormRef.current = false; // Reset submission status
+            setIsSendingData(false); // Reset sending data status
           };
 
           // Handle user's answer to a question
@@ -308,25 +309,12 @@
                 return;
             }
 
-            if (name.trim() === '' && phone.trim() === '') {
-                console.log("No name or phone provided, skipping Google Form submission.");
+            // Only send if name or phone is provided and it hasn't been sent for this session yet
+            if ((name.trim() === '' && phone.trim() === '') || hasSentLeadToGoogleFormRef.current) {
                 return;
             }
 
-            // Prepare payload for logging
-            const payload = {};
-            payload[GOOGLE_FORM_NAME_FIELD_ID] = name.trim();
-            payload[GOOGLE_FORM_PHONE_FIELD_ID] = phone.trim();
-            if (GOOGLE_FORM_GENDER_FIELD_ID) {
-                payload[GOOGLE_FORM_GENDER_FIELD_ID] = quizGender;
-            }
-            if (GOOGLE_FORM_ANSWERS_FIELD_ID) {
-                payload[GOOGLE_FORM_ANSWERS_FIELD_ID] = JSON.stringify(quizAnswers);
-            }
-            console.log("Attempting to send lead data to Google Form:", {
-                url: GOOGLE_FORM_ACTION_URL,
-                data: payload
-            });
+            setIsSendingData(true); // Show sending feedback
 
             // Create a temporary hidden iframe
             const iframe = document.createElement('iframe');
@@ -371,15 +359,15 @@
                 iframe.remove();
                 console.log("Hidden Google Form submission initiated. Check your Google Sheet.");
                 hasSentLeadToGoogleFormRef.current = true; // Mark as sent for this session
-            }, 1000);
+                setIsSendingData(false); // Hide sending feedback
+            }, 2000); // Give it a bit more time for the submission to process and then clean up
           };
 
           // Effect to trigger Google Form submission
           React.useEffect(() => {
-              // Only attempt to send if results are shown, and we haven't sent yet,
-              // and there's at least a name or phone number.
+              // Only attempt to send if results are shown, and there's valid data
               if (showResult && (leadName.trim() !== '' || leadPhone.trim() !== '')) {
-                  // If data has not been sent yet for the current state of leads, send it.
+                  // Only send if data for this session hasn't been sent yet
                   if (!hasSentLeadToGoogleFormRef.current) {
                       const handler = setTimeout(() => {
                           sendLeadToGoogleForm(leadName, leadPhone, gender, answers);
@@ -519,29 +507,12 @@
           };
 
           // Component to display quiz results
-          const Result = ({ gender, consultationMessage, onRestart, leadName, setLeadName, leadPhone, setLeadPhone, answers }) => {
+          const Result = ({ gender, consultationMessage, onRestart, leadName, setLeadName, leadPhone, setLeadPhone, answers, isSendingData }) => {
             const baseWhatsappPretext = "Saya dah jawab kuiz dan nak cuba berikhtiar dgn Teh Uncang Buah Zuriat.";
             // Append name and phone if provided
             const fullWhatsappPretext = `${baseWhatsappPretext}${leadName ? ` Nama: ${leadName}` : ''}${leadPhone ? ` No. Telefon: ${leadPhone}` : ''}`;
             const whatsappLink = `https://wa.me/60136406474?text=${encodeURIComponent(fullWhatsappPretext)}`;
-
-            // Use effect to send data to Google Form when name/phone changes
-            React.useEffect(() => {
-                // Only send if leadName or leadPhone has content and it's changed from initial empty state
-                if (leadName.trim() !== '' || leadPhone.trim() !== '') {
-                    // This debounce helps prevent sending on every single keystroke.
-                    // It will send after the user pauses typing for 500ms.
-                    const handler = setTimeout(() => {
-                        sendLeadToGoogleForm(leadName, leadPhone, gender, answers);
-                    }, 500);
-
-                    return () => {
-                        clearTimeout(handler);
-                    };
-                }
-            }, [leadName, leadPhone, gender, answers]);
-
-
+            
             return (
               <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md mx-auto text-center">
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">Hasil Kuiz Anda</h2>
@@ -580,6 +551,11 @@
                             onChange={(e) => setLeadPhone(e.target.value)}
                         />
                     </div>
+                    {isSendingData && (
+                        <p className="text-sm text-blue-600 font-medium mt-2">
+                            Data anda sedang dihantar... (sila tunggu seketika)
+                        </p>
+                    )}
                 </div>
 
                 <a
@@ -646,12 +622,14 @@
                     setLeadName('');
                     setLeadPhone('');
                     hasSentLeadToGoogleFormRef.current = false; // Reset on restart
+                    setIsSendingData(false); // Reset on restart
                   }}
                   leadName={leadName}
                   setLeadName={setLeadName}
                   leadPhone={leadPhone}
                   setLeadPhone={setLeadPhone}
                   answers={answers} // Pass answers to Result for saving
+                  isSendingData={isSendingData} // Pass sending status
                 />
               ) : (
                 // Show current question
