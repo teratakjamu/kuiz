@@ -37,12 +37,26 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
+        // URL GOOGLE FORM DAN ID INPUT ANDA
+        // Ini telah diisi berdasarkan link yang anda berikan
+        const GOOGLE_FORM_ACTION_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdettwqhWDq-40Z8j2CcSp4pJa3vN2gHk68OAO_6PZLfJ2xtw/formResponse";
+        const GOOGLE_FORM_NAME_FIELD_ID = "entry.802902389";
+        const GOOGLE_FORM_PHONE_FIELD_ID = "entry.631499256";
+        const GOOGLE_FORM_GENDER_FIELD_ID = "entry.1916375168"; // Untuk medan 'Jantina'
+        const GOOGLE_FORM_ANSWERS_FIELD_ID = "entry.497349643"; // Untuk medan 'Jawapan Kuiz'
+
         // Main App component
         const App = () => {
           const [gender, setGender] = React.useState(null); // 'male' or 'female'
           const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0);
           const [answers, setAnswers] = React.useState({});
           const [showResult, setShowResult] = React.useState(false);
+
+          // State for lead collection
+          const [leadName, setLeadName] = React.useState('');
+          const [leadPhone, setLeadPhone] = React.useState('');
+          // Menggunakan useRef untuk mengesan sama ada data telah dihantar untuk elak penghantaran berulang
+          const hasSentLeadToGoogleFormRef = React.useRef(false); 
 
           // Define questions for female
           const femaleQuestions = [
@@ -264,6 +278,9 @@
             setCurrentQuestionIndex(0); // Reset for new quiz
             setAnswers({}); // Clear previous answers
             setShowResult(false); // Hide result
+            setLeadName(''); // Clear lead name
+            setLeadPhone(''); // Clear lead phone
+            hasSentLeadToGoogleFormRef.current = false; // Reset submission status
           };
 
           // Handle user's answer to a question
@@ -282,6 +299,59 @@
               setShowResult(true); // All questions answered, show results
             }
           };
+
+          // Function to send data to Google Form
+          const sendLeadToGoogleForm = async (name, phone, quizGender, quizAnswers) => {
+            if (!GOOGLE_FORM_ACTION_URL || !GOOGLE_FORM_NAME_FIELD_ID || !GOOGLE_FORM_PHONE_FIELD_ID) {
+                console.error("Google Form configuration is missing. Please update the GOOGLE_FORM_... constants in the code.");
+                return;
+            }
+
+            if (name.trim() === '' && phone.trim() === '') {
+                console.log("No name or phone provided, skipping Google Form submission.");
+                return;
+            }
+
+            // Create a FormData object
+            const formData = new FormData();
+            formData.append(GOOGLE_FORM_NAME_FIELD_ID, name.trim());
+            formData.append(GOOGLE_FORM_PHONE_FIELD_ID, phone.trim());
+
+            if (GOOGLE_FORM_GENDER_FIELD_ID) {
+                formData.append(GOOGLE_FORM_GENDER_FIELD_ID, quizGender);
+            }
+            if (GOOGLE_FORM_ANSWERS_FIELD_ID) {
+                formData.append(GOOGLE_FORM_ANSWERS_FIELD_ID, JSON.stringify(quizAnswers)); // Stringify complex object
+            }
+
+            try {
+                const response = await fetch(GOOGLE_FORM_ACTION_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Important for cross-origin form submissions without CORS headers
+                    body: formData,
+                });
+                console.log("Lead data sent to Google Form (response status may be 0 due to no-cors):", response);
+                hasSentLeadToGoogleFormRef.current = true; // Mark as sent
+            } catch (error) {
+                console.error("Error sending lead data to Google Form:", error);
+            }
+          };
+
+          // Effect to trigger Google Form submission
+          React.useEffect(() => {
+              // Only attempt to send if results are shown, and we haven't sent yet,
+              // and there's at least a name or phone number.
+              if (showResult && !hasSentLeadToGoogleFormRef.current && (leadName.trim() !== '' || leadPhone.trim() !== '')) {
+                  const handler = setTimeout(() => {
+                      sendLeadToGoogleForm(leadName, leadPhone, gender, answers);
+                  }, 500); // Debounce to prevent multiple sends on rapid typing
+
+                  return () => {
+                      clearTimeout(handler);
+                  };
+              }
+          }, [showResult, leadName, leadPhone, gender, answers]);
+
 
           // Calculate the quiz result based on answers
           const calculateResult = () => {
@@ -409,9 +479,28 @@
           };
 
           // Component to display quiz results
-          const Result = ({ gender, consultationMessage, onRestart }) => {
-            const whatsappPretext = encodeURIComponent("Saya dah jawab kuiz dan nak cuba berikhtiar dgn Teh Uncang Buah Zuriat");
-            const whatsappLink = `https://wa.me/601161721732?text=${whatsappPretext}`;
+          const Result = ({ gender, consultationMessage, onRestart, leadName, setLeadName, leadPhone, setLeadPhone, answers }) => {
+            const baseWhatsappPretext = "Saya dah jawab kuiz dan nak cuba berikhtiar dgn Teh Uncang Buah Zuriat.";
+            // Append name and phone if provided
+            const fullWhatsappPretext = `${baseWhatsappPretext}${leadName ? ` Nama: ${leadName}` : ''}${leadPhone ? ` No. Telefon: ${leadPhone}` : ''}`;
+            const whatsappLink = `https://wa.me/60136406474?text=${encodeURIComponent(fullWhatsappPretext)}`;
+
+            // Use effect to send data to Google Form when name/phone changes
+            React.useEffect(() => {
+                // Only send if leadName or leadPhone has content and it's changed from initial empty state
+                if (leadName.trim() !== '' || leadPhone.trim() !== '') {
+                    // This debounce helps prevent sending on every single keystroke.
+                    // It will send after the user pauses typing for 500ms.
+                    const handler = setTimeout(() => {
+                        sendLeadToGoogleForm(leadName, leadPhone, gender, answers);
+                    }, 500);
+
+                    return () => {
+                        clearTimeout(handler);
+                    };
+                }
+            }, [leadName, leadPhone, gender, answers]);
+
 
             return (
               <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md mx-auto text-center">
@@ -424,6 +513,35 @@
                   <strong className="text-gray-800">bukan diagnosis perubatan</strong>. Untuk nasihat dan penilaian kesuburan yang tepat, sila{' '}
                   <strong className="text-gray-800">berunding dengan doktor atau pakar kesuburan</strong> anda.
                 </p>
+
+                {/* Lead Collection Form */}
+                <div className="mt-8 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-md font-semibold text-gray-700 mb-3">
+                        Dapatkan Khidmat Nasihat Peribadi!
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                        Masukkan nama & nombor telefon anda di bawah untuk kami hubungi dan berikan panduan lebih lanjut.
+                    </p>
+                    <div className="mb-4">
+                        <input
+                            type="text"
+                            placeholder="Nama Penuh Anda"
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                            value={leadName}
+                            onChange={(e) => setLeadName(e.target.value)}
+                        />
+                    </div>
+                    <div className="mb-4">
+                        <input
+                            type="tel"
+                            placeholder="Nombor Telefon (cth: 0123456789)"
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                            value={leadPhone}
+                            onChange={(e) => setLeadPhone(e.target.value)}
+                        />
+                    </div>
+                </div>
+
                 <a
                   href={whatsappLink}
                   target="_blank"
@@ -485,7 +603,15 @@
                     setCurrentQuestionIndex(0);
                     setAnswers({});
                     setShowResult(false);
+                    setLeadName('');
+                    setLeadPhone('');
+                    hasSentLeadToGoogleFormRef.current = false; // Reset on restart
                   }}
+                  leadName={leadName}
+                  setLeadName={setLeadName}
+                  leadPhone={leadPhone}
+                  setLeadPhone={setLeadPhone}
+                  answers={answers} // Pass answers to Result for saving
                 />
               ) : (
                 // Show current question
@@ -494,7 +620,7 @@
                     question={currentQuestions[currentQuestionIndex].question}
                     options={currentQuestions[currentQuestionIndex].options}
                     onAnswer={(value) => handleAnswer(currentQuestions[currentQuestionIndex].id, value)}
-                    currentAnswer={answers[currentQuestionIndex] ? answers[currentQuestions[currentQuestionIndex].id] : null}
+                    currentAnswer={answers[currentQuestions[currentQuestionIndex].id]}
                     questionNumber={currentQuestionIndex + 1}
                     totalQuestions={totalQuestions}
                   />
