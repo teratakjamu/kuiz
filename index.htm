@@ -285,100 +285,56 @@
 
           // Calculate the quiz result based on answers
           const calculateResult = () => {
-            let score = 0;
+            let totalScore = 0;
             let consultationMessage = '';
 
             // Scoring logic: A = 3 points, B = 2 points, C/D = 1 point
-            const calculateScore = (answerValue) => {
+            const calculateScoreValue = (answerValue) => {
               if (answerValue === 'A') return 3;
               if (answerValue === 'B') return 2;
               return 1; // For C and D
             };
 
-            // Evaluate answers
+            // Evaluate answers to get total score
             Object.keys(answers).forEach((questionId) => {
-              score += calculateScore(answers[questionId]);
+              totalScore += calculateScoreValue(answers[questionId]);
             });
 
-            // Determine consultation message based on gender and score/specific answers
-            if (gender === 'female') {
-              const ageAnswer = answers['female_q1'];
-              const cycleAnswer = answers['female_q2'];
-              const weightAnswer = answers['female_q3'];
-              const folicAcidAnswer = answers['female_q4'];
-              const smokingAnswer = answers['female_q7'];
-              const alcoholAnswer = answers['female_q8'];
-              const chronicDiseaseAnswer = answers['female_q10'];
+            // Calculate percentage
+            const maxScore = totalQuestions * 3;
+            const percentageScore = ((totalScore / maxScore) * 100).toFixed(0); // Round to nearest whole number
 
-              if (score >= (totalQuestions * 2.5) && smokingAnswer === 'A' && alcoholAnswer === 'A' && chronicDiseaseAnswer === 'A') {
+            // Determine consultation message based on score ranges
+            if (totalScore >= 27) { // 80% ke atas (27-33)
                 consultationMessage = (
                   <>
-                    <h3 className="text-xl font-semibold text-green-700 mb-2">Tahniah!</h3>
+                    <h3 className="text-xl font-semibold text-green-700 mb-2">Tahniah, Kesediaan Badan Anda Cemerlang!</h3>
                     <p className="mb-4">
-                      Anda menunjukkan kesediaan fizikal yang baik untuk hamil. Umur anda, kitaran haid yang teratur, gaya hidup sihat, dan pengambilan asid folik yang konsisten adalah petanda positif. Teruskan usaha anda dan jangan lupa untuk terus menjaga kesihatan secara menyeluruh. Jika anda belum berbuat demikian, pertimbangkan untuk berbincang dengan doktor anda untuk pemeriksaan pra-kehamilan yang lengkap.
+                      Dengan skor kesediaan yang tinggi, anda menunjukkan persediaan fizikal yang sangat baik untuk hamil. Kitaran haid yang teratur, gaya hidup aktif, pemakanan seimbang, dan pengambilan asid folik yang konsisten adalah kunci kejayaan anda. Teruskan amalan gaya hidup sihat ini. Jika anda belum berbuat demikian, pertimbangkan untuk berbincang dengan doktor anda untuk pemeriksaan pra-kehamilan yang lengkap bagi memastikan segalanya berjalan lancar.
                     </p>
                   </>
                 );
-              } else if (score >= (totalQuestions * 1.5) && score < (totalQuestions * 2.5)) {
+            } else if (totalScore >= 20 && totalScore <= 26) { // 60% - 79% (20-26)
                 consultationMessage = (
                   <>
-                    <h3 className="text-xl font-semibold text-yellow-700 mb-2">Anda di Landasan yang Betul!</h3>
+                    <h3 className="text-xl font-semibold text-yellow-700 mb-2">Kesediaan Badan Anda di Tahap Baik!</h3>
                     <p className="mb-4">
-                      Terdapat beberapa aspek yang boleh anda perbaiki untuk meningkatkan kesediaan badan anda. Cuba untuk lebih konsisten dalam pengambilan asid folik dan pastikan pengurusan stres anda lebih teratur. Sedikit perubahan dalam gaya hidup boleh membuat perbezaan besar. Berundinglah dengan doktor untuk nasihat lebih lanjut dan pelan tindakan yang sesuai. **Sebagai alternatif, anda boleh cuba berikhtiar dengan produk kami iaitu Teh Uncang Buah Zuriat, produk 100% natural untuk meningkatkan potensi kehamilan.**
+                      Skor kesediaan anda menunjukkan tahap yang baik, namun ada ruang untuk penambahbaikan yang boleh membantu meningkatkan potensi kehamilan. Mungkin ada beberapa aspek seperti pengurusan stres atau konsistensi dalam pengambilan suplemen yang boleh dipertingkatkan. **Fokus pada gaya hidup sihat secara menyeluruh, dan sebagai alternatif, anda boleh pertimbangkan untuk berikhtiar dengan produk kami iaitu Teh Uncang Buah Zuriat, produk 100% natural untuk meningkatkan potensi kehamilan.** Berundinglah dengan doktor untuk nasihat lanjut dan pelan tindakan yang lebih sesuai untuk anda.
                     </p>
                   </>
                 );
-              } else {
+            } else { // Bawah 60% (11-19)
                 consultationMessage = (
                   <>
-                    <h3 className="text-xl font-semibold text-red-700 mb-2">Perhatian Diperlukan!</h3>
+                    <h3 className="text-xl font-semibold text-red-700 mb-2">Perhatian Diperlukan untuk Kesediaan Badan Anda!</h3>
                     <p className="mb-4">
-                      Berdasarkan jawapan anda, terdapat beberapa cabaran yang mungkin perlu ditangani sebelum atau semasa berusaha untuk hamil. Faktor umur, kitaran haid yang tidak teratur, masalah berat badan, atau tabiat tidak sihat seperti merokok/vape dan pengambilan alkohol boleh mempengaruhi kesuburan dan kehamilan. Adalah sangat disyorkan agar anda{' '}
-                      <strong className="text-red-800">berjumpa dengan doktor atau pakar kesuburan secepat mungkin</strong> untuk penilaian menyeluruh dan pelan rawatan yang sesuai. Mereka boleh membantu mengenal pasti punca dan menawarkan penyelesaian terbaik untuk anda. **Sebagai alternatif, anda boleh cuba berikhtiar dengan produk kami iaitu Teh Uncang Buah Zuriat, produk 100% natural untuk meningkatkan potensi kehamilan.**
+                      Berdasarkan skor anda, terdapat beberapa faktor penting yang mungkin mempengaruhi kesuburan anda yang memerlukan perhatian segera. Ini mungkin termasuk isu kitaran haid yang tidak teratur, masalah berat badan, atau tabiat gaya hidup seperti merokok/vape dan pengambilan alkohol. Adalah sangat disyorkan agar anda **berjumpa dengan doktor atau pakar kesuburan secepat mungkin** untuk penilaian menyeluruh. Mereka boleh membantu mengenal pasti punca dan menawarkan pelan rawatan terbaik. **Sebagai alternatif, anda boleh cuba berikhtiar dengan produk kami iaitu Teh Uncang Buah Zuriat, produk 100% natural untuk meningkatkan potensi kehamilan.**
                     </p>
                   </>
                 );
-              }
-            } else if (gender === 'male') {
-              const ageAnswer = answers['male_q1'];
-              const smokingAnswer = answers['male_q2'];
-              const alcoholAnswer = answers['male_q3'];
-              const hotExposureAnswer = answers['male_q8'];
-              const tightUnderwearAnswer = answers['male_q9'];
-              const chronicDiseaseAnswer = answers['male_q10'];
-
-              if (score >= (totalQuestions * 2.5) && smokingAnswer === 'A' && alcoholAnswer === 'A' && hotExposureAnswer === 'A' && tightUnderwearAnswer === 'A' && chronicDiseaseAnswer === 'A') {
-                consultationMessage = (
-                  <>
-                    <h3 className="text-xl font-semibold text-green-700 mb-2">Hebat!</h3>
-                    <p className="mb-4">
-                      Anda menunjukkan kesediaan fizikal yang sangat baik untuk menyokong proses kehamilan. Umur anda, gaya hidup sihat, mengelakkan rokok/vape dan alkohol, serta pengurusan stres yang baik adalah faktor penting untuk kesuburan lelaki. Teruskan amalan positif ini. Jika anda belum berbuat demikian, pertimbangkan untuk berbincang dengan doktor anda untuk pemeriksaan kesihatan umum.
-                    </p>
-                  </>
-                );
-              } else if (score >= (totalQuestions * 1.5) && score < (totalQuestions * 2.5)) {
-                consultationMessage = (
-                  <>
-                    <h3 className="text-xl font-semibold text-yellow-700 mb-2">Anda di Laluan yang Baik!</h3>
-                    <p className="mb-4">
-                      Terdapat ruang untuk penambahbaikan bagi meningkatkan kesuburan anda. Pertimbangkan untuk mengurangkan pendedahan kepada haba tinggi dan mengamalkan pemakaian seluar dalam yang lebih longgar. Sedikit perubahan dalam gaya hidup boleh memberi impak positif. Dapatkan nasihat daripada doktor untuk panduan yang lebih spesifik. **Sebagai alternatif, anda boleh cuba berikhtiar dengan produk kami iaitu Teh Uncang Buah Zuriat, produk 100% natural untuk meningkatkan potensi kehamilan.**
-                    </p>
-                  </>
-                );
-              } else {
-                consultationMessage = (
-                  <>
-                    <h3 className="text-xl font-semibold text-red-700 mb-2">Perhatian Diperlukan!</h3>
-                    <p className="mb-4">
-                      Berdasarkan jawapan anda, terdapat beberapa faktor yang mungkin mempengaruhi kesuburan anda. Faktor umur, tabiat seperti merokok/vape, pengambilan alkohol yang berlebihan, pendedahan kepada haba tinggi atau bahan kimia berbahaya, dan masalah berat badan boleh memberi kesan negatif kepada kualiti sperma. Adalah sangat disyorkan agar anda{' '}
-                      <strong className="text-red-800">berjumpa dengan doktor atau pakar kesuburan secepat mungkin</strong> untuk penilaian menyeluruh. Mereka boleh membantu mengenal pasti punca dan menawarkan strategi untuk meningkatkan kesuburan anda. **Sebagai alternatif, anda boleh cuba berikhtiar dengan produk kami iaitu Teh Uncang Buah Zuriat, produk 100% natural untuk meningkatkan potensi kehamilan.**
-                    </p>
-                  </>
-                );
-              }
             }
 
-            return consultationMessage;
+            return { totalScore, percentageScore, consultationMessage, maxScore };
           };
 
           // Component to display a single question
@@ -409,13 +365,20 @@
           };
 
           // Component to display quiz results
-          const Result = ({ gender, consultationMessage, onRestart }) => {
-            const baseWhatsappPretext = "Saya dah jawab kuiz dan nak cuba berikhtiar dgn Teh Uncang Buah Zuriat.";
-            const whatsappLink = `https://wa.me/60136406474?text=${encodeURIComponent(baseWhatsappPretext)}`;
+          const Result = ({ gender, onRestart, answers }) => {
+            const { totalScore, percentageScore, consultationMessage, maxScore } = calculateResult();
+
+            const whatsappPretext = `Saya dah jawab kuiz dan nak cuba berikhtiar dgn Teh Uncang Buah Zuriat. Skor kesediaan saya adalah ${totalScore}/${maxScore} (${percentageScore}%).`;
+            const whatsappLink = `https://wa.me/60136406474?text=${encodeURIComponent(whatsappPretext)}`;
             
             return (
               <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md mx-auto text-center">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Hasil Kuiz Anda</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Hasil Kuiz Anda</h2>
+                
+                <div className="text-lg font-semibold text-blue-700 mb-4">
+                  Skor Kesediaan Badan Anda: {totalScore} / {maxScore} ({percentageScore}%)
+                </div>
+
                 <div className="text-gray-700 text-left mb-6">
                   {consultationMessage}
                 </div>
@@ -481,7 +444,8 @@
                 // Show quiz results
                 <Result
                   gender={gender}
-                  consultationMessage={calculateResult()}
+                  answers={answers} // Pass answers to Result component for score calculation
+                  consultationMessage={calculateResult().consultationMessage} // Pass only the message from here
                   onRestart={() => {
                     setGender(null);
                     setCurrentQuestionIndex(0);
